@@ -3,7 +3,7 @@ from django.http import HttpResponse,HttpResponseRedirect
 from django.contrib import messages
 from django.core.files.storage import FileSystemStorage
 import datetime
-from .models import CustomerUser,Staffs,Courses,Subjects,Students,Attendance,AttendanceReport,LeaveReportStudent,FeedBackStudent,StudentResult
+from .models import CustomUser,Staffs,Courses,Subjects,Students,Attendance,AttendanceReport,LeaveReportStudent,FeedBackStudent,StudentResult
 
 def student_home(request):
     student_obj = Students.objects.get(admin = request.user.id)
@@ -60,7 +60,7 @@ def student_view_attendace_post(request):
 
         subject_obj = Students.objects.get(id=subject_id)
 
-        user_obj = CustomerUser.objects.get(id=request.user.id)
+        user_obj = CustomUser.objects.get(id=request.user.id)
 
         stud_obj = Students.objects.get(admin = user_obj)
 
@@ -101,4 +101,74 @@ def student_apply_leave_save(request):
         except:
             messages.error(request,'failed to apply leave')
             return redirect('student_apply_leave')
+
+def student_feedback(request):
+    student_obj = Students.objects.get(admin=request.user.id)
+    feedback_data = FeedBackStudent.objects.filter(student_id = student_obj)
+    context ={
+        "feedback_data": feedback_data
+    }
+    return render(request,'student_template/student_feedback.html',context)
+
+def student_feedback_save(request):
+    if request.method!= 'POST':
+        messages.error(request,'Invalid method')
+        return redirect('student_feedback')
+    else:
+        feedback = request.POST.get(admin=request.user.id)
+        student_obj = Students.objects.get(admin = request.user.id)
+
+        try:
+            add_feedback = FeedBackStudent(student_id = student_obj,feedback=feedback,feedback_reply='')
+            add_feedback.save()
+            messages.success(request,'feedback sent')
+            return redirect('student_feedback')
+        except:
+            messages.error(request,'failed to send feedback')
+            return redirect('student_feedback')
+
+def student_profile(request):
+    user = CustomUser.objects.get(id = request.user.id)
+    student = Students.objects.get(admin = user)
+
+    context ={
+        "user": user,
+        "student": student
+    }
+    return render(request,'student_template/student_profile.html',context)
+
+def student_profile_update(request):
+    if request.method!='POST':
+        messages.error(request,'Invalid method!')
+        return redirect('student_profile')
+    else:
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        password = request.POST.get('password')
+        address = request.POST.get('address')
         
+        try:
+            customer = CustomUser.objects.get(id =request.user.id)
+            customer.first_name = first_name
+            customer.last_name = last_name
+            if password!= None and password !='':
+                customer.set_password(password)
+            customer.save()
+
+            student = Students.objects.get(admin = customer.id)
+            student.address = address
+            student.save()
+
+            messages.success(request,'profile updated successfully')
+            return redirect('student_profile')
+        except:
+            messages.error(request,'failed to update profile')
+            return redirect('student_profile')
+        
+def student_view_result(request):
+    student = Students.objects.get(admin = request.user.id)
+    student_result = StudentResult.objects.filter(student_id = student.id)
+    context ={
+        "student_result" : student_result
+    }
+    return render(request,'student_template/student_view_result.html',context)
